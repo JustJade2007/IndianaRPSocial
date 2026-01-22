@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { createRoot } from "react-dom/client";
 import { GoogleGenAI } from "@google/genai";
+import { supabase } from "./src/lib/supabase";
 import { IS_LOCAL_TESTING } from "./local-testing";
 import {
   Home,
@@ -43,13 +44,15 @@ interface User {
   joinedAt: number;
   followers: string[]; // User IDs
   following: string[]; // User IDs
+  roblox_username?: string;
+  discord_username?: string;
 }
 
 interface Post {
   id: string;
   authorId: string;
   content: string;
-  media?: string; // Base64
+  media?: string; // URL or Base64
   mediaType?: 'image' | 'video';
   hashtags: string[];
   likes: string[]; // User IDs
@@ -238,15 +241,24 @@ const NavItem = ({ icon: Icon, label, active, onClick, badge }: any) => (
 );
 
 // 2. Auth & Registration Screen
-const AuthScreen = ({ users, onLogin, onRegister }: any) => {
+const AuthScreen = ({ onLogin, onRegister }: any) => {
   const [mode, setMode] = useState<'login' | 'register'>('login');
-  const [regData, setRegData] = useState({ name: '', handle: '', bio: '' });
+  const [loginData, setLoginData] = useState({ identifier: '', password: '' });
+  const [regData, setRegData] = useState({ name: '', handle: '', bio: '', roblox: '', discord: '', password: '' });
+  const [loading, setLoading] = useState(false);
 
-  const approvedUsers = users.filter((u: User) => u.status === 'APPROVED');
-
-  const handleRegister = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onRegister(regData);
+    setLoading(true);
+    await onLogin(loginData.identifier, loginData.password);
+    setLoading(false);
+  };
+
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    await onRegister(regData);
+    setLoading(false);
   };
 
   return (
@@ -263,62 +275,109 @@ const AuthScreen = ({ users, onLogin, onRegister }: any) => {
         </h1>
 
         {mode === 'login' ? (
-          <div className="space-y-4">
-            <p className="text-slate-400 text-center text-sm mb-4">Select an account to simulate login:</p>
-            <div className="max-h-60 overflow-y-auto space-y-2 pr-2">
-              {approvedUsers.map((u: User) => (
-                <button
-                  key={u.id}
-                  onClick={() => onLogin(u.id)}
-                  className="w-full flex items-center gap-3 p-3 rounded-xl bg-slate-800 hover:bg-slate-700 transition-colors text-left"
-                >
-                  <img src={u.avatar} className="w-10 h-10 rounded-full bg-slate-700" />
-                  <div>
-                    <div className="font-bold">{u.name}</div>
-                    <div className="text-sm text-slate-400">{u.handle}</div>
-                  </div>
-                  {u.isModerator && <ShieldAlert size={16} className="ml-auto text-indigo-400" />}
-                </button>
-              ))}
+          <form onSubmit={handleLoginSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-400 mb-1">Discord or Roblox Username</label>
+              <input 
+                required
+                className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 outline-none"
+                value={loginData.identifier}
+                onChange={e => setLoginData({...loginData, identifier: e.target.value})}
+              />
             </div>
-            <div className="pt-4 border-t border-slate-800">
-              <button onClick={() => setMode('register')} className="w-full text-indigo-400 hover:text-indigo-300 text-sm font-semibold">
+            <div>
+              <label className="block text-sm font-medium text-slate-400 mb-1">Password</label>
+              <input 
+                type="password"
+                required
+                className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 outline-none"
+                value={loginData.password}
+                onChange={e => setLoginData({...loginData, password: e.target.value})}
+              />
+            </div>
+            <button 
+              type="submit" 
+              disabled={loading}
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg transition-all flex items-center justify-center gap-2"
+            >
+              {loading && <Loader2 size={18} className="animate-spin" />}
+              Login
+            </button>
+            <div className="pt-4 border-t border-slate-800 text-center">
+              <button type="button" onClick={() => setMode('register')} className="text-indigo-400 hover:text-indigo-300 text-sm font-semibold">
                 Don't have an account? Apply now
               </button>
             </div>
-          </div>
+          </form>
         ) : (
-          <form onSubmit={handleRegister} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-400 mb-1">Display Name</label>
-              <input 
-                required
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 outline-none"
-                value={regData.name}
-                onChange={e => setRegData({...regData, name: e.target.value})}
-              />
+          <form onSubmit={handleRegisterSubmit} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-1">Display Name</label>
+                <input 
+                  required
+                  className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 outline-none"
+                  value={regData.name}
+                  onChange={e => setRegData({...regData, name: e.target.value})}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-1">Handle (@user)</label>
+                <input 
+                  required
+                  pattern="^@[a-zA-Z0-9_]+$"
+                  placeholder="@username"
+                  className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 outline-none"
+                  value={regData.handle}
+                  onChange={e => setRegData({...regData, handle: e.target.value})}
+                />
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-400 mb-1">Handle (e.g. @user)</label>
-              <input 
-                required
-                pattern="^@[a-zA-Z0-9_]+$"
-                placeholder="@username"
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 outline-none"
-                value={regData.handle}
-                onChange={e => setRegData({...regData, handle: e.target.value})}
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-1">Roblox User</label>
+                <input 
+                  required
+                  className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 outline-none"
+                  value={regData.roblox}
+                  onChange={e => setRegData({...regData, roblox: e.target.value})}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-1">Discord User</label>
+                <input 
+                  required
+                  className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 outline-none"
+                  value={regData.discord}
+                  onChange={e => setRegData({...regData, discord: e.target.value})}
+                />
+              </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-400 mb-1">Bio</label>
               <textarea 
                 required
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 outline-none h-24 resize-none"
+                className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 outline-none h-20 resize-none"
                 value={regData.bio}
                 onChange={e => setRegData({...regData, bio: e.target.value})}
               />
             </div>
-            <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg transition-all">
+            <div>
+              <label className="block text-sm font-medium text-slate-400 mb-1">Password</label>
+              <input 
+                type="password"
+                required
+                className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 outline-none"
+                value={regData.password}
+                onChange={e => setRegData({...regData, password: e.target.value})}
+              />
+            </div>
+            <button 
+              type="submit" 
+              disabled={loading}
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg transition-all flex items-center justify-center gap-2"
+            >
+              {loading && <Loader2 size={18} className="animate-spin" />}
               Submit Application
             </button>
             <button type="button" onClick={() => setMode('login')} className="w-full text-slate-400 hover:text-slate-300 text-sm mt-2">
@@ -713,82 +772,151 @@ const Messages = ({ users, currentUser }: any) => {
 
 const App = () => {
   // Global State
-  const [users, setUsers] = useState<User[]>(() => {
-    const saved = localStorage.getItem("mimic_users");
-    return saved ? JSON.parse(saved) : INITIAL_USERS;
-  });
-  
-  const [posts, setPosts] = useState<Post[]>(() => {
-    const saved = localStorage.getItem("mimic_posts");
-    return saved ? JSON.parse(saved) : INITIAL_POSTS;
-  });
-
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [users, setUsers] = useState<User[]>([]);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(() => localStorage.getItem("mimic_user_id"));
   const [view, setView] = useState('home'); // home, explore, messages, profile, moderator, compose
+  const [loading, setLoading] = useState(true);
 
   const currentUser = users.find(u => u.id === currentUserId);
 
-  useEffect(() => {
-    localStorage.setItem("mimic_users", JSON.stringify(users));
-  }, [users]);
+  // Data Loading
+  const fetchData = async () => {
+    try {
+      const [profilesRes, postsRes, likesRes, followsRes] = await Promise.all([
+        supabase.from('profiles').select('*'),
+        supabase.from('posts').select('*').order('created_at', { ascending: false }),
+        supabase.from('likes').select('*'),
+        supabase.from('follows').select('*')
+      ]);
 
-  useEffect(() => {
-    localStorage.setItem("mimic_posts", JSON.stringify(posts));
-  }, [posts]);
+      if (profilesRes.data) {
+        const mappedUsers: User[] = profilesRes.data.map((p: any) => ({
+          id: p.id,
+          handle: p.handle,
+          name: p.display_name,
+          avatar: p.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.handle}`,
+          bio: p.bio,
+          isModerator: p.is_moderator,
+          status: p.status,
+          joinedAt: new Date(p.joined_at).getTime(),
+          roblox_username: p.roblox_username,
+          discord_username: p.discord_username,
+          followers: followsRes.data?.filter(f => f.following_id === p.id).map(f => f.follower_id) || [],
+          following: followsRes.data?.filter(f => f.follower_id === p.id).map(f => f.following_id) || []
+        }));
+        setUsers(mappedUsers);
+      }
 
-  // Actions
-  const handleRegister = (data: { name: string, handle: string, bio: string }) => {
-    const newUser: User = {
-      id: "u_" + generateId(),
-      ...data,
-      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${data.handle}`,
-      isModerator: false,
-      status: 'PENDING',
-      joinedAt: Date.now(),
-      followers: [],
-      following: []
-    };
-    setUsers([...users, newUser]);
-    alert("Application submitted! Please wait for a moderator to approve your account.");
-    // In a real app, we wouldn't auto-login, but here we go back to login screen
+      if (postsRes.data) {
+        const mappedPosts: Post[] = postsRes.data.map((p: any) => ({
+          id: p.id,
+          authorId: p.author_id,
+          content: p.content,
+          media: p.media_url,
+          mediaType: p.media_type,
+          hashtags: p.hashtags || [],
+          timestamp: new Date(p.created_at).getTime(),
+          likes: likesRes.data?.filter(l => l.post_id === p.id).map(l => l.user_id) || []
+        }));
+        setPosts(mappedPosts);
+      }
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleLogin = (userId: string) => {
-    setCurrentUserId(userId);
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  // Actions
+  const handleRegister = async (data: any) => {
+    const { data: profile, error } = await supabase.from('profiles').insert({
+      display_name: data.name,
+      handle: data.handle,
+      bio: data.bio,
+      roblox_username: data.roblox,
+      discord_username: data.discord,
+      password: data.password,
+      status: 'PENDING'
+    }).select().single();
+
+    if (error) {
+      alert("Error: " + error.message);
+      return;
+    }
+
+    fetchData();
+    alert("Application submitted! Please wait for a moderator to approve your account.");
+  };
+
+  const handleLogin = async (identifier: string, password: string) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .or(`roblox_username.eq."${identifier}",discord_username.eq."${identifier}"`)
+      .eq('password', password)
+      .single();
+
+    if (error || !data) {
+      alert("Invalid credentials.");
+      return;
+    }
+
+    if (data.status !== 'APPROVED') {
+      alert("Your account is " + data.status.toLowerCase() + ".");
+      return;
+    }
+
+    setCurrentUserId(data.id);
+    localStorage.setItem("mimic_user_id", data.id);
     setView('home');
   };
 
-  const handlePostCreate = (data: { content: string, media?: string, mediaType?: 'image' | 'video' }) => {
+  const handlePostCreate = async (data: { content: string, media?: string, mediaType?: 'image' | 'video' }) => {
     if (!currentUser) return;
-    const newPost: Post = {
-      id: "p_" + generateId(),
-      authorId: currentUser.id,
+    
+    const { data: post, error } = await supabase.from('posts').insert({
+      author_id: currentUser.id,
       content: data.content,
-      media: data.media,
-      mediaType: data.mediaType,
-      hashtags: extractHashtags(data.content),
-      likes: [],
-      timestamp: Date.now()
-    };
-    setPosts([newPost, ...posts]);
+      media_url: data.media,
+      media_type: data.mediaType,
+      hashtags: extractHashtags(data.content)
+    }).select().single();
+
+    if (error) {
+      alert("Post failed: " + error.message);
+      return;
+    }
+    
+    fetchData();
   };
 
-  const handleLike = (postId: string) => {
+  const handleLike = async (postId: string) => {
     if (!currentUser) return;
-    setPosts(posts.map(p => {
-      if (p.id === postId) {
-        const isLiked = p.likes.includes(currentUser.id);
-        return {
-          ...p,
-          likes: isLiked ? p.likes.filter(id => id !== currentUser.id) : [...p.likes, currentUser.id]
-        };
-      }
-      return p;
-    }));
+    const post = posts.find(p => p.id === postId);
+    if (!post) return;
+
+    const isLiked = post.likes.includes(currentUser.id);
+
+    if (isLiked) {
+      await supabase.from('likes').delete().match({ post_id: postId, user_id: currentUser.id });
+    } else {
+      await supabase.from('likes').insert({ post_id: postId, user_id: currentUser.id });
+    }
+    
+    fetchData();
   };
 
-  const handleModeration = (userId: string, action: 'APPROVED' | 'REJECTED') => {
-    setUsers(users.map(u => u.id === userId ? { ...u, status: action } : u));
+  const handleModeration = async (userId: string, action: 'APPROVED' | 'REJECTED') => {
+    const { error } = await supabase.from('profiles').update({ status: action }).eq('id', userId);
+    if (error) {
+      alert("Moderation failed: " + error.message);
+    }
+    fetchData();
   };
 
   const pendingCount = users.filter(u => u.status === 'PENDING').length;
