@@ -1,0 +1,3 @@
+@echo off
+echo Starting local testing build...
+npm install && npm run dev
