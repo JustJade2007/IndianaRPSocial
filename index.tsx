@@ -39,7 +39,6 @@ const Modal = ({ children, onClose, title, large }: any) => (
 );
 
 const NavItem = ({ icon: Icon, label, active, onClick, badge, currentUser }: any) => {
-  const isDark = currentUser?.themePreference === 'dark' || !currentUser?.themePreference;
   return (
     <button onClick={onClick} className={`flex items-center gap-4 w-full p-3 rounded-full transition-all ${active ? 'font-bold bg-slate-100 dark:bg-slate-900 text-indigo-600 dark:text-indigo-400' : 'hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-600 dark:text-slate-300'}`}>
       <div className="relative"><Icon size={26} />{badge && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full">{badge}</span>}</div>
@@ -451,31 +450,32 @@ const App = () => {
       )}
       {view === 'settings' && <SettingsView currentUser={currentUser} users={users} onUpdateProfile={handleUpdateProfile} authUser={authUser} onLogout={handleLogout} />}
       {view === 'moderator' && <ModeratorDashboard users={users} onReview={async(id:string,s:string)=>{await supabase.from('profiles').update({status:s}).eq('id',id);fetchData();}} />}
-      {view === 'changelog' && ( <div className="p-4 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100"><h2 className="text-xl font-bold mb-4 text-white text-white text-white text-white text-white text-white text-white text-white text-white">Changelog</h2><History /></div> )}
+      {view === 'changelog' && ( <div className="p-4 text-slate-100 text-slate-100"><h2 className="text-xl font-bold mb-4">Changelog</h2><History /></div> )}
       {showSwitchModal && (
         <Modal onClose={() => setShowSwitchModal(false)} title="Switch Account">
-          <div className="space-y-2 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100">
+          <div className="space-y-2">
             {[authUser, ...users.filter((u: User) => u.parentUserId === authUserId)].map((u: any) => {
+              if (!u) return null;
               const isArchived = u.isArchived && !currentUser.isModerator;
               return (
                 <button key={u.id} disabled={isArchived} onClick={()=>{setActiveAccountId(u.id); localStorage.setItem("mimic_active_id", u.id); setShowSwitchModal(false);}} className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${currentUser.id === u.id ? 'bg-indigo-600/20 border border-indigo-500' : 'hover:bg-slate-800 border border-transparent'} ${isArchived ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}>
                   <img src={u.avatar} className="w-10 h-10 rounded-full bg-slate-800" alt="avatar" />
-                  <div className="text-left flex-1 overflow-hidden text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100"><p className="font-bold truncate text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100">{u.name}</p><p className="text-slate-500 text-sm truncate">{formatHandle(u.handle)} {u.isArchived && "(Archived)"}</p></div>
+                  <div className="text-left flex-1 overflow-hidden"><p className="font-bold truncate">{u.name}</p><p className="text-slate-500 text-sm truncate">{formatHandle(u.handle)} {u.isArchived && "(Archived)"}</p></div>
                   {currentUser.id === u.id && <CheckCircle size={20} className="text-indigo-400" />}{isArchived && <Lock size={16} className="text-slate-500" />}
                 </button>
               );
             })}
-            <div className="pt-2 border-t border-slate-800 mt-2 space-y-2 text-slate-100 text-slate-100 text-slate-100 text-slate-100"><button onClick={()=>{setShowSwitchModal(false); setShowCharacterCreate(true);}} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-800 transition-all text-indigo-400 font-semibold text-white text-left text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white"><PlusCircle size={20} /> Create Character Account</button></div>
+            <div className="pt-2 border-t border-slate-800 mt-2 space-y-2"><button onClick={()=>{setShowSwitchModal(false); setShowCharacterCreate(true);}} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-800 transition-all text-indigo-400 font-semibold"><PlusCircle size={20} /> Create Character Account</button></div>
           </div>
         </Modal>
       )}
       {showCharacterCreate && (
         <Modal onClose={() => setShowCharacterCreate(false)} title="Create Character">
-          <form onSubmit={async (e:any)=>{e.preventDefault(); const d = new FormData(e.target); if(!authUserId)return; await supabase.from('profiles').insert({ display_name: d.get('name'), handle: d.get('handle'), bio: d.get('bio'), password:'char', status:'APPROVED', account_type:'CHARACTER', parent_user_id: authUserId }); setShowCharacterCreate(false); fetchData();}} className="space-y-4 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100">
-            <input name="name" required className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 outline-none text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100" placeholder="Character Name" />
-            <input name="handle" required className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 outline-none text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100" placeholder="@handle" />
-            <textarea name="bio" required className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 outline-none h-20 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100" placeholder="Bio" />
-            <button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg text-slate-100 text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white">Create</button>
+          <form onSubmit={async (e:any)=>{e.preventDefault(); const d = new FormData(e.target); if(!authUserId)return; await supabase.from('profiles').insert({ display_name: d.get('name'), handle: d.get('handle'), bio: d.get('bio'), password:'char', status:'APPROVED', account_type:'CHARACTER', parent_user_id: authUserId }); setShowCharacterCreate(false); fetchData();}} className="space-y-4">
+            <input name="name" required className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 outline-none text-slate-100" placeholder="Character Name" />
+            <input name="handle" required className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 outline-none text-slate-100" placeholder="@handle" />
+            <textarea name="bio" required className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 outline-none h-20 text-slate-100" placeholder="Bio" />
+            <button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg">Create</button>
           </form>
         </Modal>
       )}
@@ -502,4 +502,19 @@ const App = () => {
     </Layout>
   );
 };
-createRoot(document.getElementById("root")!).render(<App />);
+
+try {
+  console.log("Initializing React root...");
+  const rootElement = document.getElementById("root");
+  if (!rootElement) {
+    throw new Error("Failed to find the root element");
+  }
+  createRoot(rootElement).render(<App />);
+  console.log("React root rendered.");
+} catch (error) {
+  console.error("CRITICAL ERROR during initialization:", error);
+  const rootElement = document.getElementById("root");
+  if (rootElement) {
+    rootElement.innerHTML = `<div style="padding: 20px; color: white; background: red;"><h1>Critical Error</h1><p>${(error as any).message}</p></div>`;
+  }
+}
