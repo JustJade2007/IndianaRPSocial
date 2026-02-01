@@ -10,6 +10,17 @@ and this project adheres to a custom versioning scheme:
 - `PATCH`: Major bug fixes or minor improvements.
 - `DEV`: Minor changes, bug fixes, or incremental updates.
 
+## [0.2.4.b] - 2026-02-01
+
+### Added
+- Vercel Deployment Support: Added `vercel.json` for Single Page Application (SPA) routing.
+- Improved environment detection: `IS_LOCAL_TESTING` now automatically switches based on the build environment.
+- Debug Logging: Added initialization logs and error handling for Supabase data fetching to assist in troubleshooting production issues.
+
+### Fixed
+- Deployment: Resolved "black screen" issue on Vercel caused by hardcoded local testing mode.
+- Git: Updated `.gitignore` to prevent build artifacts and dependencies from being committed.
+
 ## [0.2.4.a] - 2026-02-01
 
 ### Added

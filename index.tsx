@@ -307,6 +307,7 @@ const EditProfileModal = ({ currentUser, onClose, onSave }: any) => {
 };
 
 const App = () => {
+  console.log("App component rendering...");
   const [users, setUsers] = useState<User[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
   const [maintenance, setMaintenance] = useState<Maintenance | null>(null);
@@ -324,6 +325,7 @@ const App = () => {
 
   const fetchData = async () => {
     try {
+      console.log("Fetching data from Supabase...");
       const [profilesRes, postsRes, maintRes, bwRes] = await Promise.all([
         supabase.from('profiles').select('*'), supabase.from('posts').select('*').order('created_at', { ascending: false }),
         supabase.from('maintenance').select('*').limit(1).maybeSingle(), supabase.from('banned_words').select('*')
@@ -334,7 +336,10 @@ const App = () => {
       if (postsRes.data) setPosts(postsRes.data.map((p: any) => ({ id: p.id, authorId: p.author_id, content: p.content, media: p.media_url, mediaType: p.media_type, hashtags: p.hashtags || [], timestamp: new Date(p.created_at).getTime(), likes: [], commentsCount: 0 })));
       if (maintRes?.data) setMaintenance({ id: maintRes.data.id, isActive: maintRes.data.is_active, message: maintRes.data.message });
       if (bwRes?.data) setBannedWords(bwRes.data.map((b: any) => ({ id: b.id, word: b.word })));
-    } catch (e) {}
+      console.log("Data fetch complete.");
+    } catch (e) {
+      console.error("Data fetch failed:", e);
+    }
   };
   useEffect(() => { fetchData(); }, []);
   const handleLogout = () => { setAuthUserId(null); setActiveAccountId(null); localStorage.removeItem("mimic_user_id"); localStorage.removeItem("mimic_active_id"); };
@@ -349,8 +354,12 @@ const App = () => {
     await supabase.from('profiles').update(upd).eq('id', currentUser.id); fetchData();
   };
 
-  if (!currentUser) return <AuthScreen onLogin={handleLogin} />;
+  if (!currentUser) {
+    console.log("No current user, showing AuthScreen");
+    return <AuthScreen onLogin={handleLogin} />;
+  }
 
+  console.log("Current user found, showing main layout");
   return (
     <Layout currentUser={currentUser} currentView={view} onNavigate={setView} onSwitchAccount={() => setShowSwitchModal(true)} pendingCount={users.filter(u => u.status === 'PENDING').length} posts={posts} maintenance={maintenance}>
       {view === 'home' && <Feed posts={posts} users={users} currentUser={currentUser} onLike={()=>{}} onPostCreated={async(d:any)=>{await supabase.from('posts').insert({ author_id: currentUser.id, content: d.content, media_url: d.media, media_type: d.mediaType, hashtags: extractHashtags(d.content) }); fetchData();}} onCommentClick={setCommentingPostId} onBlockUser={()=>{}} onReport={()=>{}} />}
@@ -451,7 +460,7 @@ const App = () => {
               return (
                 <button key={u.id} disabled={isArchived} onClick={()=>{setActiveAccountId(u.id); localStorage.setItem("mimic_active_id", u.id); setShowSwitchModal(false);}} className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${currentUser.id === u.id ? 'bg-indigo-600/20 border border-indigo-500' : 'hover:bg-slate-800 border border-transparent'} ${isArchived ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}>
                   <img src={u.avatar} className="w-10 h-10 rounded-full bg-slate-800" alt="avatar" />
-                  <div className="text-left flex-1 overflow-hidden text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100"><p className="font-bold truncate text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100">{u.name}</p><p className="text-slate-500 text-sm truncate">{formatHandle(u.handle)} {u.isArchived && "(Archived)"}</p></div>
+                  <div className="text-left flex-1 overflow-hidden text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100"><p className="font-bold truncate text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100">{u.name}</p><p className="text-slate-500 text-sm truncate">{formatHandle(u.handle)} {u.isArchived && "(Archived)"}</p></div>
                   {currentUser.id === u.id && <CheckCircle size={20} className="text-indigo-400" />}{isArchived && <Lock size={16} className="text-slate-500" />}
                 </button>
               );
