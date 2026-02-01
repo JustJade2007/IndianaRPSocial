@@ -18,6 +18,7 @@ You can also use the provided scripts for a quick setup:
 - Social Media platform for Indiana RP
 - Gemini AI Integration (Configuration set up)
 - Dual Account System (User & Character accounts)
+- Character-only posting (Users must use character accounts to post)
 - Integrated Changelog system
 - Post sharing functionality
 - Commenting system

@@ -10,6 +10,31 @@ and this project adheres to a custom versioning scheme:
 - `PATCH`: Major bug fixes or minor improvements.
 - `DEV`: Minor changes, bug fixes, or incremental updates.
 
+## [0.2.4.a] - 2026-02-01
+
+### Added
+- "Edit Profile" option with comprehensive customization:
+    - Banner image upload (Base64) alongside PFP.
+    - Career and Home Address fields.
+    - Visibility toggles for Discord and Roblox handles.
+- Database: Enforced unique home addresses per account.
+
+## [0.2.3.a] - 2026-02-01
+
+### Added
+- Character Management System (Settings > Account):
+    - Mark as Deceased: Records death date and archives account.
+    - Life Sentence: Mark as imprisoned in Indiana State Pen and archives account.
+    - Misc/Delete: Options to fully delete (rename to [DELETED USER#0000], remove avatar/bio) or simply archive.
+- Past Names: Changes to display names are now tracked and shown on profiles.
+- Moderator Controls: Ability for moderators to unlock archived character accounts.
+- Archival Restrictions: Archived accounts cannot post or be switched to by non-moderators.
+
+## [0.2.2.e] - 2026-01-27
+
+### Added
+- Posting Restriction: Non-admin users can now only post using character accounts. The "Post" widget is hidden for user accounts, and backend checks enforce the rule.
+
 ## [0.2.2.d] - 2026-01-22
 
 ### Added
