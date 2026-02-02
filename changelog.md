@@ -10,6 +10,13 @@ and this project adheres to a custom versioning scheme:
 - `PATCH`: Major bug fixes or minor improvements.
 - `DEV`: Minor changes, bug fixes, or incremental updates.
 
+## [0.2.5.a] - 2026-02-02
+
+### Added
+- "Apply for an account" button and application form to the login screen.
+- Implemented application submission logic with moderator review status.
+- Added rules and disclaimers acceptance to the application process.
+
 ## [0.2.4.b] - 2026-02-01
 
 ### Added

@@ -15,6 +15,7 @@ You can also use the provided scripts for a quick setup:
 - **Linux**: Run `./run.sh`
 
 ## Features
+- **Application System**: New users can apply directly from the login page with Discord/Roblox integration and moderator review.
 - Social Media platform for Indiana RP
 - Gemini AI Integration (Configuration set up)
 - Dual Account System (User & Character accounts)

@@ -180,18 +180,113 @@ const CommentModal = ({ post, author, users, currentUser, onClose, onCommentSubm
   );
 };
 
-const AuthScreen = ({ onLogin }: any) => {
-  const [loginData, setLoginData] = useState({ identifier: '', password: '' });
+const ApplyModal = ({ onClose, onApply }: any) => {
+  const [data, setData] = useState({ 
+    discord: '', 
+    roblox: '', 
+    name: '', 
+    bio: '', 
+    password: '',
+    acceptedRules: false 
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4 text-slate-100 text-slate-100">
-      <div className="w-full max-w-md bg-slate-900 p-8 rounded-2xl shadow-2xl border border-slate-800 text-slate-100 text-slate-100">
-        <h1 className="text-2xl font-bold text-center mb-8 text-white text-white text-white text-white text-white">Sign in</h1>
-        <form onSubmit={(e) => { e.preventDefault(); onLogin(loginData.identifier, loginData.password); }} className="space-y-4 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100">
-          <input required className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 outline-none text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100" placeholder="Discord/Roblox" value={loginData.identifier} onChange={e => setLoginData({...loginData, identifier: e.target.value})} />
-          <input type="password" required className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 outline-none text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100 text-slate-100" placeholder="Password" value={loginData.password} onChange={e => setLoginData({...loginData, password: e.target.value})} />
-          <button className="w-full bg-indigo-600 hover:bg-indigo-700 py-3 rounded-lg font-bold text-slate-100 text-white text-white text-white text-white text-white text-white">Login</button>
+    <Modal onClose={onClose} title="Apply for an Account" large>
+      <form onSubmit={async (e) => {
+        e.preventDefault();
+        if (!data.acceptedRules) return alert("You must accept the rules.");
+        setIsSubmitting(true);
+        await onApply(data);
+        setIsSubmitting(false);
+      }} className="space-y-4 text-slate-100">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="text-sm font-semibold text-slate-400">Discord Username</label>
+            <input required className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-slate-100" value={data.discord} onChange={e => setData({...data, discord: e.target.value})} placeholder="user#0000" />
+          </div>
+          <div>
+            <label className="text-sm font-semibold text-slate-400">Roblox Username</label>
+            <input required className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-slate-100" value={data.roblox} onChange={e => setData({...data, roblox: e.target.value})} placeholder="RobloxUser" />
+          </div>
+        </div>
+        <div>
+          <label className="text-sm font-semibold text-slate-400">Display Name</label>
+          <input required className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-slate-100" value={data.name} onChange={e => setData({...data, name: e.target.value})} placeholder="John Doe" />
+        </div>
+        <div>
+          <label className="text-sm font-semibold text-slate-400">Why do you want to join?</label>
+          <textarea required className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-slate-100 h-24 resize-none" value={data.bio} onChange={e => setData({...data, bio: e.target.value})} placeholder="Tell us about your roleplay experience..." />
+        </div>
+        <div>
+          <label className="text-sm font-semibold text-slate-400">Password</label>
+          <input type="password" required className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-slate-100" value={data.password} onChange={e => setData({...data, password: e.target.value})} placeholder="••••••••" />
+        </div>
+
+        <div className="p-4 bg-slate-800/50 rounded-xl space-y-2">
+          <h4 className="font-bold text-sm uppercase tracking-wider text-slate-300">Rules & Disclaimers</h4>
+          <div className="text-xs text-slate-400 h-24 overflow-y-auto border border-slate-700 p-2 rounded bg-slate-950 mb-2">
+            <p>1. Respect all members of the community.</p>
+            <p>2. No OOC toxicity or drama.</p>
+            <p>3. Follow the realistic roleplay guidelines at all times.</p>
+            <p>4. Your account is subject to moderator review and can be suspended at any time.</p>
+            <p>5. By applying, you agree to our terms of service and community rules.</p>
+          </div>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={data.acceptedRules} onChange={e => setData({...data, acceptedRules: e.target.checked})} className="rounded bg-slate-950 border-slate-700 text-indigo-600" />
+            <span className="text-sm text-slate-300">I have read and agree to the rules and disclaimers.</span>
+          </label>
+        </div>
+
+        <button disabled={isSubmitting || !data.acceptedRules} className="w-full bg-indigo-600 hover:bg-indigo-700 py-3 rounded-lg font-bold text-white flex items-center justify-center gap-2">
+          {isSubmitting ? <Loader2 className="animate-spin" /> : "Submit Application"}
+        </button>
+      </form>
+    </Modal>
+  );
+};
+
+const AuthScreen = ({ onLogin, onApply }: any) => {
+  const [loginData, setLoginData] = useState({ identifier: '', password: '' });
+  const [showApply, setShowApply] = useState(false);
+
+  return (
+    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4 text-slate-100">
+      <div className="w-full max-w-md bg-slate-900 p-8 rounded-2xl shadow-2xl border border-slate-800">
+        <div className="flex justify-center mb-8">
+          <div className="w-16 h-16 bg-indigo-500 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
+            <span className="text-3xl font-bold text-white">M</span>
+          </div>
+        </div>
+        <h1 className="text-2xl font-bold text-center mb-2 text-white">Welcome back</h1>
+        <p className="text-slate-500 text-center mb-8">Sign in to your account to continue</p>
+        
+        <form onSubmit={(e) => { e.preventDefault(); onLogin(loginData.identifier, loginData.password); }} className="space-y-4">
+          <div className="space-y-1">
+            <label className="text-sm font-semibold text-slate-400 ml-1">Account Identifier</label>
+            <input required className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 outline-none text-slate-100 focus:border-indigo-500 transition-colors" placeholder="Discord or Roblox name" value={loginData.identifier} onChange={e => setLoginData({...loginData, identifier: e.target.value})} />
+          </div>
+          <div className="space-y-1">
+            <label className="text-sm font-semibold text-slate-400 ml-1">Password</label>
+            <input type="password" required className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 outline-none text-slate-100 focus:border-indigo-500 transition-colors" placeholder="••••••••" value={loginData.password} onChange={e => setLoginData({...loginData, password: e.target.value})} />
+          </div>
+          <button className="w-full bg-indigo-600 hover:bg-indigo-700 py-3 rounded-lg font-bold text-white shadow-lg shadow-indigo-600/20 transition-all active:scale-[0.98]">Login</button>
         </form>
+
+        <div className="mt-8 pt-6 border-t border-slate-800 text-center">
+          <p className="text-slate-500 mb-4">Don't have an account yet?</p>
+          <button onClick={() => setShowApply(true)} className="text-indigo-400 font-bold hover:text-indigo-300 transition-colors">Apply for a new account</button>
+        </div>
       </div>
+      
+      {showApply && <ApplyModal onClose={() => setShowApply(false)} onApply={onApply} />}
+      
+      {IS_TEST_MODE && (
+        <div className="mt-8 p-4 bg-orange-500/10 border border-orange-500/20 rounded-xl max-w-md text-center">
+          <p className="text-orange-400 text-xs font-bold uppercase tracking-widest mb-1">Testing Mode Active</p>
+          <p className="text-slate-400 text-sm">Supabase connection is optional. Applications will be simulated if not connected.</p>
+        </div>
+      )}
     </div>
   );
 };
@@ -353,9 +448,35 @@ const App = () => {
     await supabase.from('profiles').update(upd).eq('id', currentUser.id); fetchData();
   };
 
+  const handleApply = async (data: any) => {
+    try {
+      const handle = `@${data.name.toLowerCase().replace(/\s+/g, '')}${Math.floor(Math.random() * 999)}`;
+      const { error } = await supabase.from('profiles').insert({
+        display_name: data.name,
+        handle: handle,
+        bio: data.bio,
+        discord_username: data.discord,
+        roblox_username: data.roblox,
+        password: data.password,
+        status: 'PENDING',
+        account_type: 'USER'
+      });
+
+      if (error) {
+        if (error.code === '23505') alert("An account with this Discord or Roblox username already exists.");
+        else alert("Error submitting application: " + error.message);
+        return;
+      }
+
+      alert("Application submitted successfully! Please wait for a moderator to review your request.");
+    } catch (err: any) {
+      alert("Application failed: " + err.message);
+    }
+  };
+
   if (!currentUser) {
     console.log("No current user, showing AuthScreen");
-    return <AuthScreen onLogin={handleLogin} />;
+    return <AuthScreen onLogin={handleLogin} onApply={handleApply} />;
   }
 
   console.log("Current user found, showing main layout");
