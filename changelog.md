@@ -10,6 +10,12 @@ and this project adheres to a custom versioning scheme:
 - `PATCH`: Major bug fixes or minor improvements.
 - `DEV`: Minor changes, bug fixes, or incremental updates.
 
+## [0.2.5.b] - 2026-02-02
+
+### Fixed
+- Character creation: Resolved issue where the "Create" button did nothing. Added proper error handling, loading states, and handle validation.
+- Limits: Enforced character creation limits on the frontend.
+
 ## [0.2.5.a] - 2026-02-02
 
 ### Added

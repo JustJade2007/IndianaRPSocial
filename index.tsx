@@ -412,6 +412,7 @@ const App = () => {
   const [commentingPostId, setCommentingPostId] = useState<string | null>(null);
   const [showSwitchModal, setShowSwitchModal] = useState(false);
   const [showCharacterCreate, setShowCharacterCreate] = useState(false);
+  const [isCreatingCharacter, setIsCreatingCharacter] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
 
   const authUser = users.find(u => u.id === authUserId);
@@ -446,6 +447,50 @@ const App = () => {
     const upd: any = { ...u };
     if (u.name && u.name !== currentUser.name) { upd.display_name = u.name; upd.past_names = [...(currentUser.pastNames || []), currentUser.name]; }
     await supabase.from('profiles').update(upd).eq('id', currentUser.id); fetchData();
+  };
+
+  const handleCreateCharacter = async (e: any) => {
+    e.preventDefault();
+    if (!authUserId || !authUser) return;
+
+    // Check character limit
+    const existingCharacters = users.filter(u => u.parentUserId === authUserId);
+    const limit = authUser.maxCharacters || 5;
+    if (existingCharacters.length >= limit) {
+      alert(`You have reached the maximum amount of characters (${limit}). Please delete a profile or DM an admin.`);
+      return;
+    }
+
+    setIsCreatingCharacter(true);
+    const d = new FormData(e.target);
+    const name = d.get('name') as string;
+    const rawHandle = d.get('handle') as string;
+    const handle = rawHandle.startsWith('@') ? rawHandle : `@${rawHandle}`;
+    const bio = d.get('bio') as string;
+
+    try {
+      const { error } = await supabase.from('profiles').insert({
+        display_name: name,
+        handle: handle,
+        bio: bio,
+        password: 'char',
+        status: 'APPROVED',
+        account_type: 'CHARACTER',
+        parent_user_id: authUserId
+      });
+
+      if (error) {
+        if (error.code === '23505') alert("This handle is already taken.");
+        else alert("Error creating character: " + error.message);
+      } else {
+        setShowCharacterCreate(false);
+        fetchData();
+      }
+    } catch (err: any) {
+      alert("An unexpected error occurred: " + err.message);
+    } finally {
+      setIsCreatingCharacter(false);
+    }
   };
 
   const handleApply = async (data: any) => {
@@ -591,12 +636,23 @@ const App = () => {
         </Modal>
       )}
       {showCharacterCreate && (
-        <Modal onClose={() => setShowCharacterCreate(false)} title="Create Character">
-          <form onSubmit={async (e:any)=>{e.preventDefault(); const d = new FormData(e.target); if(!authUserId)return; await supabase.from('profiles').insert({ display_name: d.get('name'), handle: d.get('handle'), bio: d.get('bio'), password:'char', status:'APPROVED', account_type:'CHARACTER', parent_user_id: authUserId }); setShowCharacterCreate(false); fetchData();}} className="space-y-4">
-            <input name="name" required className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 outline-none text-slate-100" placeholder="Character Name" />
-            <input name="handle" required className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 outline-none text-slate-100" placeholder="@handle" />
-            <textarea name="bio" required className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 outline-none h-20 text-slate-100" placeholder="Bio" />
-            <button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg">Create</button>
+        <Modal onClose={() => !isCreatingCharacter && setShowCharacterCreate(false)} title="Create Character">
+          <form onSubmit={handleCreateCharacter} className="space-y-4">
+            <div className="space-y-1">
+              <label className="text-sm font-semibold text-slate-400 ml-1">Character Name</label>
+              <input name="name" required className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 outline-none text-slate-100 focus:border-indigo-500 transition-colors" placeholder="e.g. John Doe" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-semibold text-slate-400 ml-1">Handle</label>
+              <input name="handle" required className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 outline-none text-slate-100 focus:border-indigo-500 transition-colors" placeholder="@handle" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-semibold text-slate-400 ml-1">Bio</label>
+              <textarea name="bio" required className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 outline-none h-24 text-slate-100 focus:border-indigo-500 transition-colors resize-none" placeholder="Tell us about your character..." />
+            </div>
+            <button disabled={isCreatingCharacter} className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-all">
+              {isCreatingCharacter ? <Loader2 className="animate-spin" /> : "Create Character"}
+            </button>
           </form>
         </Modal>
       )}
