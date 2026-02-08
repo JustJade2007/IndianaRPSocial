@@ -10,6 +10,13 @@ and this project adheres to a custom versioning scheme:
 - `PATCH`: Major bug fixes or minor improvements.
 - `DEV`: Minor changes, bug fixes, or incremental updates.
 
+## [0.2.5.c] - 2026-02-08
+
+### Changed
+- Environment: Migrated repository from Linux to Windows environment.
+- Git: Configured `core.filemode false` to handle permission differences between OS platforms and avoid tracking irrelevant executable bit changes.
+- Infrastructure: Verified `run.bat` and `run.sh` consistency for cross-platform local testing.
+
 ## [0.2.5.b] - 2026-02-02
 
 ### Fixed
