@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.6.d] - 2026-02-18
+
+### Added
+- Real-time Direct Messaging (DM) system:
+    - New `MessagesView` with conversation list and interactive chat window.
+    - Real-time message updates using Supabase PostgreSQL subscriptions.
+    - "Message" button on user profiles to instantly start conversations.
+    - Unread message indicators on the conversation list.
+    - Automatic scrolling to latest messages in chat.
+- Database: Added `direct_messages` table with Row Level Security (RLS) policies.
+
 ## [0.2.5.d] - 2026-02-18
 
 ### Added
