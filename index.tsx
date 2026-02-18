@@ -20,6 +20,8 @@ interface Comment { id: string; postId: string; authorId: string; content: strin
 interface Maintenance { id: string; isActive: boolean; message: string; scheduledRestart?: number; }
 interface BannedWord { id: string; word: string; userId?: string; }
 interface Report { id: string; reporterId: string; reportedUserId?: string; reportedPostId?: string; reason: string; status: 'PENDING' | 'REVIEWED' | 'ACTIONED'; createdAt: number; }
+interface DirectMessage { id: string; sender_id: string; receiver_id: string; content: string; is_read: boolean; created_at: number; }
+interface Conversation { participant: User; lastMessage: DirectMessage; unreadCount: number; }
 
 const generateId = () => Math.random().toString(36).substring(2, 9);
 const extractHashtags = (text: string) => { const matches = text.match(/#[a-z0-9_]+/gi); return matches ? matches.map(tag => tag.substring(1).toLowerCase()) : []; };
@@ -177,6 +179,149 @@ const CommentModal = ({ post, author, users, currentUser, onClose, onCommentSubm
         <form onSubmit={async (e) => { e.preventDefault(); if (!newComment.trim()) return; await supabase.from('comments').insert({ post_id: post.id, author_id: currentUser.id, content: newComment.trim() }); setNewComment(""); fetchComments(); onCommentSubmit(); }} className="pt-4 border-t border-slate-800 flex gap-2"><input className="flex-1 bg-slate-950 border border-slate-800 rounded-lg p-2 text-sm text-slate-100 text-slate-100" placeholder="Reply..." value={newComment} onChange={e => setNewComment(e.target.value)} /><button className="bg-indigo-600 px-4 rounded-lg font-bold text-white text-white">Reply</button></form>
       </div>
     </Modal>
+  );
+};
+
+const MessagesView = ({ currentUser, users, initialRecipientId }: any) => {
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [selectedRecipientId, setSelectedRecipientId] = useState<string | null>(initialRecipientId);
+  const [messages, setMessages] = useState<DirectMessage[]>([]);
+  const [newMessage, setNewMessage] = useState("");
+  const msgEndRef = useRef<HTMLDivElement>(null);
+
+  const fetchConversations = async () => {
+    const { data: msgs } = await supabase
+      .from('direct_messages')
+      .select('*')
+      .or(`sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`)
+      .order('created_at', { ascending: false });
+
+    if (msgs) {
+      const convosMap = new Map<string, Conversation>();
+      msgs.forEach((m: any) => {
+        const otherId = m.sender_id === currentUser.id ? m.receiver_id : m.sender_id;
+        if (!convosMap.has(otherId)) {
+          const otherUser = users.find((u: User) => u.id === otherId);
+          if (otherUser) {
+            convosMap.set(otherId, {
+              participant: otherUser,
+              lastMessage: { ...m, created_at: new Date(m.created_at).getTime() },
+              unreadCount: m.receiver_id === currentUser.id && !m.is_read ? 1 : 0
+            });
+          }
+        } else if (m.receiver_id === currentUser.id && !m.is_read) {
+          convosMap.get(otherId)!.unreadCount++;
+        }
+      });
+      setConversations(Array.from(convosMap.values()));
+    }
+  };
+
+  const fetchMessages = async (recipientId: string) => {
+    const { data: msgs } = await supabase
+      .from('direct_messages')
+      .select('*')
+      .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${recipientId}),and(sender_id.eq.${recipientId},receiver_id.eq.${currentUser.id})`)
+      .order('created_at', { ascending: true });
+
+    if (msgs) {
+      setMessages(msgs.map((m: any) => ({ ...m, created_at: new Date(m.created_at).getTime() })));
+      // Mark as read
+      const unread = msgs.filter((m: any) => m.receiver_id === currentUser.id && !m.is_read);
+      if (unread.length > 0) {
+        await supabase.from('direct_messages').update({ is_read: true }).in('id', unread.map((m: any) => m.id));
+        fetchConversations();
+      }
+    }
+  };
+
+  useEffect(() => { fetchConversations(); }, [currentUser.id]);
+  useEffect(() => { if (selectedRecipientId) fetchMessages(selectedRecipientId); }, [selectedRecipientId]);
+  useEffect(() => { msgEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+
+  useEffect(() => {
+    const subscription = supabase
+      .channel('direct_messages')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'direct_messages' }, (payload: any) => {
+        const nm = payload.new as any;
+        if (nm.sender_id === currentUser.id || nm.receiver_id === currentUser.id) {
+          fetchConversations();
+          if (selectedRecipientId && (nm.sender_id === selectedRecipientId || nm.receiver_id === selectedRecipientId)) {
+            setMessages(prev => [...prev, { ...nm, created_at: new Date(nm.created_at).getTime() }]);
+          }
+        }
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(subscription); };
+  }, [currentUser.id, selectedRecipientId]);
+
+  const handleSendMessage = async (e: any) => {
+    e.preventDefault();
+    if (!newMessage.trim() || !selectedRecipientId) return;
+    const content = newMessage.trim();
+    setNewMessage("");
+    await supabase.from('direct_messages').insert({
+      sender_id: currentUser.id,
+      receiver_id: selectedRecipientId,
+      content
+    });
+  };
+
+  const recipient = users.find((u: User) => u.id === selectedRecipientId);
+
+  return (
+    <div className="flex h-[calc(100vh-4rem)] text-slate-100">
+      <div className={`w-full md:w-80 border-r border-slate-800 flex flex-col ${selectedRecipientId ? 'hidden md:flex' : 'flex'}`}>
+        <div className="p-4 border-b border-slate-800"><h2 className="text-xl font-bold">Messages</h2></div>
+        <div className="flex-1 overflow-y-auto">
+          {conversations.length === 0 ? (
+            <div className="p-8 text-center text-slate-500"><Mail size={48} className="mx-auto mb-4 opacity-20" /><p>No conversations yet</p></div>
+          ) : conversations.map(c => (
+            <button key={c.participant.id} onClick={() => setSelectedRecipientId(c.participant.id)} className={`w-full flex items-center gap-3 p-4 hover:bg-slate-900 transition-colors ${selectedRecipientId === c.participant.id ? 'bg-slate-900 border-r-2 border-indigo-500' : ''}`}>
+              <div className="relative">
+                <img src={c.participant.avatar} className="w-12 h-12 rounded-full" alt="avatar" />
+                {c.unreadCount > 0 && <span className="absolute -top-1 -right-1 bg-indigo-500 text-white text-[10px] w-5 h-5 flex items-center justify-center rounded-full font-bold">{c.unreadCount}</span>}
+              </div>
+              <div className="text-left flex-1 min-w-0">
+                <div className="flex justify-between items-baseline"><p className="font-bold truncate">{c.participant.name}</p><span className="text-[10px] text-slate-500">{new Date(c.lastMessage.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span></div>
+                <p className="text-sm text-slate-500 truncate">{c.lastMessage.content}</p>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className={`flex-1 flex flex-col ${!selectedRecipientId ? 'hidden md:flex' : 'flex'}`}>
+        {recipient ? (
+          <>
+            <div className="p-3 border-b border-slate-800 flex items-center gap-3">
+              <button onClick={() => setSelectedRecipientId(null)} className="md:hidden p-2 hover:bg-slate-800 rounded-full"><XCircle size={20} /></button>
+              <img src={recipient.avatar} className="w-10 h-10 rounded-full" alt="avatar" />
+              <div><p className="font-bold">{recipient.name}</p><p className="text-xs text-slate-500">{formatHandle(recipient.handle)}</p></div>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-950/30">
+              {messages.map(m => (
+                <div key={m.id} className={`flex ${m.sender_id === currentUser.id ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[80%] p-3 rounded-2xl ${m.sender_id === currentUser.id ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-slate-800 text-slate-100 rounded-tl-none'}`}>
+                    <p className="whitespace-pre-wrap">{m.content}</p>
+                    <p className="text-[10px] opacity-50 mt-1 text-right">{new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                  </div>
+                </div>
+              ))}
+              <div ref={msgEndRef} />
+            </div>
+            <form onSubmit={handleSendMessage} className="p-4 border-t border-slate-800 flex gap-2">
+              <input value={newMessage} onChange={e => setNewMessage(e.target.value)} placeholder="Start a new message" className="flex-1 bg-slate-900 border border-slate-800 rounded-full px-4 py-2 outline-none focus:border-indigo-500 transition-colors" />
+              <button type="submit" disabled={!newMessage.trim()} className="p-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-full transition-all"><Send size={20} /></button>
+            </form>
+          </>
+        ) : (
+          <div className="flex-1 flex flex-center items-center justify-center p-8 text-center text-slate-500">
+            <div><Mail size={64} className="mx-auto mb-4 opacity-10" /><h3 className="text-xl font-bold text-slate-400">Select a message</h3><p>Choose from your existing conversations or start a new one.</p></div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 };
 
