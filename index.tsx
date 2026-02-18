@@ -440,7 +440,31 @@ const App = () => {
   const handleLogout = () => { setAuthUserId(null); setActiveAccountId(null); localStorage.removeItem("mimic_user_id"); localStorage.removeItem("mimic_active_id"); };
   const handleLogin = async (i: string, p: string) => {
     const { data } = await supabase.from('profiles').select('*').or(`roblox_username.eq."${i}",discord_username.eq."${i}"`).eq('password', p).single();
-    if (data && data.status === 'APPROVED') { setAuthUserId(data.id); setActiveAccountId(data.id); localStorage.setItem("mimic_user_id", data.id); localStorage.setItem("mimic_active_id", data.id); fetchData(); } else alert("Error.");
+    
+    if (!data) {
+      alert("Invalid credentials. Please check your username and password.");
+      return;
+    }
+
+    if (data.status === 'PENDING') {
+      alert("Your application is still being processed. Please check back later!");
+      return;
+    }
+
+    if (data.status === 'REJECTED') {
+      alert("Your application has been rejected. Please contact a moderator for more information.");
+      return;
+    }
+
+    if (data.status === 'APPROVED') {
+      setAuthUserId(data.id);
+      setActiveAccountId(data.id);
+      localStorage.setItem("mimic_user_id", data.id);
+      localStorage.setItem("mimic_active_id", data.id);
+      fetchData();
+    } else {
+      alert("An unexpected error occurred with your account status.");
+    }
   };
   const handleUpdateProfile = async (u: any) => {
     if (!currentUser) return;

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.5.d] - 2026-02-18
+
+### Added
+- Custom login messages for pending and rejected account applications.
+- Improved login error handling with specific feedback for invalid credentials or account status issues.
+
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to a custom versioning scheme:
 `MAJOR.FEATURE.PATCH.DEV`
