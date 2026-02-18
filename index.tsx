@@ -391,9 +391,39 @@ const ApplyModal = ({ onClose, onApply }: any) => {
   );
 };
 
-const AuthScreen = ({ onLogin, onApply }: any) => {
+const ForgotPasswordModal = ({ onClose, onSubmit }: any) => {
+  const [data, setData] = useState({ discord: '', roblox: '' });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  return (
+    <Modal onClose={onClose} title="Forgot Password" large={false}>
+      <form onSubmit={async (e) => {
+        e.preventDefault();
+        setIsSubmitting(true);
+        await onSubmit(data);
+        setIsSubmitting(false);
+      }} className="space-y-4 text-slate-100">
+        <p className="text-sm text-slate-400">Please provide your details. A moderator will investigate and reach out to you.</p>
+        <div>
+          <label className="text-sm font-semibold text-slate-400">Discord Username</label>
+          <input required className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-slate-100" value={data.discord} onChange={e => setData({...data, discord: e.target.value})} placeholder="user#0000" />
+        </div>
+        <div>
+          <label className="text-sm font-semibold text-slate-400">Roblox Username</label>
+          <input required className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-slate-100" value={data.roblox} onChange={e => setData({...data, roblox: e.target.value})} placeholder="RobloxUser" />
+        </div>
+        <button disabled={isSubmitting} className="w-full bg-indigo-600 hover:bg-indigo-700 py-3 rounded-lg font-bold text-white flex items-center justify-center gap-2">
+          {isSubmitting ? <Loader2 className="animate-spin" /> : "Request Help"}
+        </button>
+      </form>
+    </Modal>
+  );
+};
+
+const AuthScreen = ({ onLogin, onApply, onForgotPassword }: any) => {
   const [loginData, setLoginData] = useState({ identifier: '', password: '' });
   const [showApply, setShowApply] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4 text-slate-100">
@@ -412,7 +442,10 @@ const AuthScreen = ({ onLogin, onApply }: any) => {
             <input required className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 outline-none text-slate-100 focus:border-indigo-500 transition-colors" placeholder="Discord or Roblox name" value={loginData.identifier} onChange={e => setLoginData({...loginData, identifier: e.target.value})} />
           </div>
           <div className="space-y-1">
-            <label className="text-sm font-semibold text-slate-400 ml-1">Password</label>
+            <div className="flex justify-between items-center ml-1">
+              <label className="text-sm font-semibold text-slate-400">Password</label>
+              <button type="button" onClick={() => setShowForgotPassword(true)} className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold">Forgot password?</button>
+            </div>
             <input type="password" required className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 outline-none text-slate-100 focus:border-indigo-500 transition-colors" placeholder="••••••••" value={loginData.password} onChange={e => setLoginData({...loginData, password: e.target.value})} />
           </div>
           <button className="w-full bg-indigo-600 hover:bg-indigo-700 py-3 rounded-lg font-bold text-white shadow-lg shadow-indigo-600/20 transition-all active:scale-[0.98]">Login</button>
@@ -425,6 +458,7 @@ const AuthScreen = ({ onLogin, onApply }: any) => {
       </div>
       
       {showApply && <ApplyModal onClose={() => setShowApply(false)} onApply={onApply} />}
+      {showForgotPassword && <ForgotPasswordModal onClose={() => setShowForgotPassword(false)} onSubmit={(data: any) => { onForgotPassword(data); setShowForgotPassword(false); }} />}
       
       {IS_TEST_MODE && (
         <div className="mt-8 p-4 bg-orange-500/10 border border-orange-500/20 rounded-xl max-w-md text-center">
@@ -547,6 +581,52 @@ const EditProfileModal = ({ currentUser, onClose, onSave }: any) => {
 
 const App = () => {
   console.log("App component rendering...");
+
+  const handleForgotPassword = async (data: any) => {
+    try {
+      // Find the @ADMIN user
+      const { data: adminUser } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('handle', '@ADMIN')
+        .single();
+
+      if (!adminUser && !IS_TEST_MODE) {
+        alert("System error: Could not find administrator account. Please contact support via Discord.");
+        return;
+      }
+
+      const content = `PASSWORD RESET REQUEST\nDiscord: ${data.discord}\nRoblox: ${data.roblox}\nTimestamp: ${new Date().toLocaleString()}`;
+
+      if (IS_TEST_MODE) {
+        console.log("TEST MODE: Forgot password request sent:", content);
+        alert("Test Mode: Your request has been logged to the console. In production, this would notify a moderator.");
+        return;
+      }
+
+      const { error } = await supabase.from('support_messages').insert({
+        user_id: null, // Anonymous request
+        content: content,
+        status: 'OPEN'
+      });
+
+      if (error) {
+        // Fallback to direct message if support_messages fails or is not preferred
+        const { error: dmError } = await supabase.from('direct_messages').insert({
+          sender_id: adminUser.id, // Using admin as both to flag it, or we could use a dummy ID
+          receiver_id: adminUser.id,
+          content: `ANONYMOUS ${content}`
+        });
+
+        if (dmError) throw dmError;
+      }
+
+      alert("Your request has been sent to the moderation team. They will investigate based on your Discord and Roblox usernames.");
+    } catch (err: any) {
+      alert("Failed to send request: " + err.message);
+    }
+  };
+
   const [users, setUsers] = useState<User[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
   const [maintenance, setMaintenance] = useState<Maintenance | null>(null);
@@ -691,7 +771,7 @@ const App = () => {
 
   if (!currentUser) {
     console.log("No current user, showing AuthScreen");
-    return <AuthScreen onLogin={handleLogin} onApply={handleApply} />;
+    return <AuthScreen onLogin={handleLogin} onApply={handleApply} onForgotPassword={handleForgotPassword} />;
   }
 
   console.log("Current user found, showing main layout");

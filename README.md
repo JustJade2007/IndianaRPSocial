@@ -27,6 +27,7 @@ You can also use the provided scripts for a quick setup:
 - Robust Settings (Theming, Font Size)
 - Blocking System
 - Direct Admin Support Messaging
+- **Forgot Password System**: Anonymous password recovery requests investigated by moderators.
 - **Real-time Direct Messaging**: Full Direct Messaging (DM) system with real-time updates for user-to-user communication.
 - **Moderation Dashboard**: Comprehensive tools for moderators to manage the community.
 - **Maintenance Alerts**: System-wide notifications for scheduled restarts and updates.

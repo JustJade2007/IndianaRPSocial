@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.7.d] - 2026-02-18
+
+### Added
+- Forgot Password system:
+    - Added "Forgot password?" link to the login screen.
+    - New `ForgotPasswordModal` to securely collect Discord and Roblox usernames.
+    - Automated investigation request logic that notifies moderators via support/direct messages.
+
 ## [0.2.6.d] - 2026-02-18
 
 ### Added
