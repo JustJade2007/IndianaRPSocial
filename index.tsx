@@ -554,6 +554,7 @@ const App = () => {
   const [authUserId, setAuthUserId] = useState<string | null>(() => localStorage.getItem("mimic_user_id"));
   const [activeAccountId, setActiveAccountId] = useState<string | null>(() => localStorage.getItem("mimic_active_id"));
   const [view, setView] = useState('home');
+  const [messagingRecipientId, setMessagingRecipientId] = useState<string | null>(null);
   const [commentingPostId, setCommentingPostId] = useState<string | null>(null);
   const [showSwitchModal, setShowSwitchModal] = useState(false);
   const [showCharacterCreate, setShowCharacterCreate] = useState(false);
@@ -697,6 +698,7 @@ const App = () => {
   return (
     <Layout currentUser={currentUser} currentView={view} onNavigate={setView} onSwitchAccount={() => setShowSwitchModal(true)} pendingCount={users.filter(u => u.status === 'PENDING').length} posts={posts} maintenance={maintenance}>
       {view === 'home' && <Feed posts={posts} users={users} currentUser={currentUser} onLike={()=>{}} onPostCreated={async(d:any)=>{await supabase.from('posts').insert({ author_id: currentUser.id, content: d.content, media_url: d.media, media_type: d.mediaType, hashtags: extractHashtags(d.content) }); fetchData();}} onCommentClick={setCommentingPostId} onBlockUser={()=>{}} onReport={()=>{}} />}
+      {view === 'messages' && <MessagesView currentUser={currentUser} users={users} initialRecipientId={messagingRecipientId} />}
       {view === 'profile' && (
         <div className="text-slate-100">
           <div className="relative">
@@ -706,7 +708,10 @@ const App = () => {
             <div className="absolute -bottom-16 left-4">
               <img src={currentUser.avatar} className="w-32 h-32 rounded-full border-4 border-slate-950 bg-slate-800" alt="avatar" />
             </div>
-            <div className="flex justify-end p-4">
+            <div className="flex justify-end p-4 gap-2">
+              {activeAccountId && activeAccountId !== currentUser.id && (
+                <button onClick={() => { setMessagingRecipientId(currentUser.id); setView('messages'); }} className="border border-slate-700 hover:bg-slate-900 px-4 py-2 rounded-full font-bold transition-colors flex items-center gap-2"><Mail size={18} /> Message</button>
+              )}
               {!currentUser.isArchived ? (
                 <button onClick={() => setShowEditProfile(true)} className="border border-slate-700 hover:bg-slate-900 px-4 py-2 rounded-full font-bold transition-colors">Edit Profile</button>
               ) : (
